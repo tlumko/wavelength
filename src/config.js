@@ -14,13 +14,13 @@ export const GAME = {
   targetMax: 175,
   // Reveal reaction emojis by points scored; unknown point values fall back to 0.
   reactions: {
-    4: ['🤯', '🔥', '🎯', '🥳', '👏'],
+    4: ['🤯', '🔥', '🎯', '🎉', '👏'],
     3: ['🔥', '😎', '👏', '🙌', '👍'],
     2: ['❤️‍🩹', '🙂', '👌', '🤏', '😅'],
     0: ['😭', '💩', '💀', '🙈', '🫠'],
   },
   votingReactions: ['👍', '🤔', '👀', '🤡', '💩'],
-  summaryReactions: ['😂', '🔥', '👏', '❤️', '😬', '💩'],
+  summaryReactions: ['😂', '🔥', '👏', '🎉', '😬', '💩'],
   reactionGapMs: 150,
 };
 

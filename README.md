@@ -39,7 +39,7 @@ Open two or more tabs, create a game in one and join with the 4-digit code (or t
 
 The server is the single source of truth: it holds the room state, generates tasks, and sends each
 player a snapshot. Targets are only sent to the clue's author until the reveal, so there is nothing to
-peek at in dev tools. If the host disconnects for 45 s, host passes to the next connected player.
+peek at in dev tools. If the host disconnects for 5 min, host passes to the next connected player. During writing, voting and reveal the host has a button at the bottom to skip the wait and move on.
 
 Any player can leave mid-game ("Вийти з гри", with a confirm). Their written clues stay in the game and are still guessed;
 their token stops working, so they can't rejoin. The host passes on immediately. If fewer than `minPlayers` remain,

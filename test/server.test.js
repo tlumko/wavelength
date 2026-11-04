@@ -236,7 +236,7 @@ test('full game flow with scoring, hidden target and shared advance', async () =
         bob.send({ t: 'react', emoji: '🎯' });
         await host.until((c) => c.msgs.slice(mark).some((m) => m.t === 'react' && m.emoji === '🎯' && m.playerId === bob.id));
       } else if (i > offsets.length) {
-        assert.ok(host.state.round.reactions.includes('🤡')); // miss -> nasty set
+        assert.ok(host.state.round.reactions.includes('💀')); // miss -> nasty set
       }
       for (const c of clients) assert.equal(c.state.round.score, total);
 
@@ -254,8 +254,8 @@ test('full game flow with scoring, hidden target and shared advance', async () =
     assert.ok(summary.tasks.every((t) => t.clue && Number.isInteger(t.target) && t.result && t.reactions.length));
     assert.ok(summary.reactions.length);
     const mark = host.msgs.length;
-    clients[2].send({ t: 'react', emoji: '🤡' }); // any known emoji is fine on the summary; not bob, who may still be throttled
-    await host.until((c) => c.msgs.slice(mark).some((m) => m.t === 'react' && m.emoji === '🤡'));
+    clients[2].send({ t: 'react', emoji: '😂' }); // any known emoji is fine on the summary; not bob, who may still be throttled
+    await host.until((c) => c.msgs.slice(mark).some((m) => m.t === 'react' && m.emoji === '😂'));
 
     await bob.expectError({ t: 'new_game' }, 'not_host');
     host.send({ t: 'new_game' });
@@ -339,8 +339,8 @@ test('mid-game leave: voting continues without the leaver, then too few players 
     for (const x of clients) x.send({ t: 'submit', clues: ['x', 'y', 'z'] });
     await waitAll(clients, (x) => x.state.phase === 'voting');
     await c.expectError({ t: 'react', emoji: '🎯' }, 'bad_message');
-    c.send({ t: 'react', emoji: '👎' });
-    await b.until((x) => x.msgs.some((m) => m.t === 'react' && m.emoji === '👎' && m.playerId === c.id));
+    c.send({ t: 'react', emoji: '🤔' });
+    await b.until((x) => x.msgs.some((m) => m.t === 'react' && m.emoji === '🤔' && m.playerId === c.id));
     a.send({ t: 'leave' });
     await a.until((x) => x.closeCode === 1000);
     await b.until((x) => x.state.hostId === b.id && x.state.players.find((p) => p.id === a.id).left);
@@ -366,6 +366,39 @@ test('writing deadline ends the phase and counts drafts', async () => {
     await waitAll(clients, (c) => c.state.phase === 'voting');
     assert.equal(clients[0].state.round.total, 2);
     assert.equal(clients[0].state.deadline, null);
+  } finally {
+    await closeAll(ctx, clients);
+  }
+});
+
+test('lobby survives everyone disconnecting past the grace period', async () => {
+  const ctx = await setup({ game: { graceMs: 100 } });
+  try {
+    const [a] = await lobby(ctx, ['Anna']);
+    a.ws.close();
+    await new Promise((r) => setTimeout(r, 300));
+    const back = await new Client(ctx.port, a.session).hello();
+    await back.until((c) => c.state?.players.length === 1);
+    back.ws.close();
+  } finally {
+    await ctx.s.close();
+  }
+});
+
+test('host can force past reveal; others cannot', async () => {
+  const ctx = await setup();
+  const clients = await lobby(ctx, ['Anna', 'Bob']);
+  const [host, bob] = clients;
+  try {
+    host.send({ t: 'start' });
+    await waitAll(clients, (c) => c.state?.phase === 'writing');
+    for (const c of clients) c.send({ t: 'submit', clues: ['x', 'y', 'z'] });
+    await waitAll(clients, (c) => c.state.phase === 'voting');
+    host.send({ t: 'advance', force: true });
+    await waitAll(clients, (c) => c.state.phase === 'reveal');
+    await bob.expectError({ t: 'advance', force: true }, 'not_host');
+    host.send({ t: 'advance', force: true });
+    await waitAll(clients, (c) => c.state.phase === 'voting' && c.state.round.index === 1);
   } finally {
     await closeAll(ctx, clients);
   }

@@ -381,6 +381,7 @@ export const submitClues = (clues) => act({ t: 'submit', clues });
 export const sendVote = (angle) => rawSend({ t: 'vote', angle });
 export const lockVote = (locked, angle) => act({ t: 'lock', locked: !!locked, angle });
 export const advance = () => act({ t: 'advance' });
+export const forceAdvance = () => act({ t: 'advance', force: true });
 export const react = (emoji) => rawSend({ t: 'react', emoji });
 export const newGame = () => act({ t: 'new_game' });
 export function leaveRoom() {

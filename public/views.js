@@ -11,6 +11,7 @@ import {
   sendVote,
   lockVote,
   advance,
+  forceAdvance,
   react,
   flyEmoji,
   newGame,
@@ -84,6 +85,10 @@ function Avatar({ name, color, small }) {
 function LeaveButton({ ask }) {
   const onClick = () => (!ask || confirm('Вийти з гри? Повернутися вже не вийде.')) && leaveRoom();
   return html`<button class="btn btn-ghost" onClick=${onClick}>Вийти з гри</button>`;
+}
+
+function ForceButton({ g, label }) {
+  return isHost(g) && html`<button class="btn btn-ghost force-btn" onClick=${forceAdvance}>${label}</button>`;
 }
 
 // ---------- Home ----------
@@ -314,6 +319,7 @@ function Writing({ g }) {
           : html`<button class="btn btn-primary" disabled=${!filled(i)} onClick=${() => setStep(i + 1)}>Далі</button>`}
       ${i > 0 && html`<button class="btn btn-ghost" onClick=${() => setStep(i - 1)}>Назад</button>`}
       <${LeaveButton} ask />
+      <${ForceButton} g=${g} label="Почати голосування зараз" />
     </section>
   </main>`;
 }
@@ -409,13 +415,16 @@ function Voting({ g }) {
       ${!isAuthor &&
       html`<button class=${'btn ' + (locked ? 'btn-secondary' : 'btn-primary')} onClick=${toggleLock}>${locked ? 'Змінити' : 'Готово'}</button>`}
       <p class="muted small center-text">Готово: ${lockedCount}/${guessers.length}</p>
-      ${isHost(g) && html`<button class="btn btn-ghost" onClick=${advance}>Показати результат зараз</button>`}
       <${LeaveButton} ask />
+      <${ForceButton} g=${g} label="Показати результат зараз" />
     </section>
   </main>`;
 }
 
 // ---------- Reveal ----------
+
+const Flames = () =>
+  html`<div class="flames" aria-hidden="true">${Array.from({ length: 12 }, (_, i) => html`<i style=${{ '--i': i }}></i>`)}</div>`;
 
 function Reveal({ g }) {
   const cfg = g.config;
@@ -448,6 +457,7 @@ function Reveal({ g }) {
         teamAngle=${res ? res.teamAngle : null}
         label="Результат"
       />
+      ${res && res.points === 4 && html`<${Flames} key=${task.id} />`}
       ${res &&
       html`<div class="result">
         <div class="points pop">+${res.points} <span>${pointsWord(res.points)}</span></div>
@@ -461,6 +471,7 @@ function Reveal({ g }) {
         : html`<button class="btn btn-primary" onClick=${advance}>${'Далі'}</button>`}
       <p class="muted small center-text">Готові: ${readyCount}/${connected.length}</p>
       <${LeaveButton} ask />
+      <${ForceButton} g=${g} label=${lastRound ? 'До підсумків зараз' : 'Наступний раунд зараз'} />
     </section>
   </main>`;
 }
@@ -513,10 +524,10 @@ function Summary({ g }) {
     </section>
     <div class="replay">
       <div class="vgauge" role="progressbar" aria-valuemin="0" aria-valuemax=${sm.maxScore} aria-valuenow=${score}>
+        <i class="vgauge-bands dim"></i>
+        <i class="vgauge-bands" style=${{ '--fill': (sm.maxScore ? (score / sm.maxScore) * 100 : 0) + '%' }}></i>
         ${sm.maxScore > 0 &&
-        shown.map(
-          (x) => html`<i key=${x.id} class="vgauge-seg" style=${{ height: (pointsOf(x) / sm.maxScore) * 100 + '%', '--seg': colorOf(player(g, x.authorId) ? player(g, x.authorId).color : 0) }}></i>`
-        )}
+        shown.map((x) => html`<i key=${x.id} class="vgauge-seg" style=${{ height: (pointsOf(x) / sm.maxScore) * 100 + '%' }}></i>`)}
         ${VERDICT_MARKS.map((m) => html`<span key=${m} class="vgauge-mark" style=${{ bottom: m + '%' }}>${verdictFor(m)}</span>`)}
       </div>
       ${t &&

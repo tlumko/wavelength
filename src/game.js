@@ -5,7 +5,7 @@ import { log } from './logger.js';
 
 const SPECTRUMS = JSON.parse(readFileSync(new URL('./spectrums.json', import.meta.url), 'utf8'));
 const CODE_ALPHABET = '0123456789';
-const DEFAULT_GRACE_MS = 45_000;
+const DEFAULT_GRACE_MS = 5 * 60_000;
 
 export class GameError extends Error {
   constructor(code, status = 400) {
@@ -108,7 +108,12 @@ export class Room {
   expire(p) {
     p.timer = null;
     if (p.connected || this.players.get(p.id) !== p) return;
-    if (this.phase === 'lobby') return this.removePlayer(p.id);
+    if (this.phase === 'lobby') {
+      // Phones drop the socket on screen lock; if nobody is online, keep the room and retry later.
+      // The idle sweep (IDLE_TTL_MIN) still closes abandoned rooms.
+      if (![...this.players.values()].some((q) => q.connected)) return this.armTimer(p);
+      return this.removePlayer(p.id);
+    }
     if (this.hostId === p.id) {
       const next = [...this.players.values()].find((q) => q.connected);
       if (next) {
@@ -186,7 +191,7 @@ export class Room {
       case 'submit': return this.saveClues(p, msg.clues, true);
       case 'vote': return this.vote(p, msg.angle);
       case 'lock': return this.lock(p, msg.locked, msg.angle);
-      case 'advance': return this.advance(p);
+      case 'advance': return this.advance(p, msg.force === true);
       case 'react': return this.react(p, msg.emoji);
       case 'new_game': return this.newGame(p);
       case 'leave': return this.leave(p);
@@ -340,8 +345,8 @@ export class Room {
 
   // ---- host controls -----------------------------------------------------
 
-  advance(p) {
-    if (this.phase === 'reveal') {
+  advance(p, force) {
+    if (this.phase === 'reveal' && !force) {
       this.ready.add(p.id);
       if (!this.checkReady()) this.broadcast();
       return;
@@ -349,6 +354,7 @@ export class Room {
     this.requireHost(p);
     if (this.phase === 'writing') return this.endWriting();
     if (this.phase === 'voting') return this.reveal();
+    if (this.phase === 'reveal') return this.nextRound();
     throw new GameError('bad_phase');
   }
 
