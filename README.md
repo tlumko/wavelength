@@ -27,7 +27,8 @@ Open two or more tabs, create a game in one and join with the 4-digit code (or t
    drafts are autosaved, so whatever is typed when time runs out still counts, empty clues are skipped.
    Ends early when everyone has submitted.
 3. **Voting** – clues are shown one by one, round-robin in join order (everyone's 1st clue, then everyone's 2nd, …). Everyone except the author moves a dial (others' dials are
-   visible, semi-transparent, with a live team-average arrow) and locks it in. When all connected guessers have locked, the round reveals.
+   visible, semi-transparent, with a live team-average arrow) and locks it in. Anyone can tap reaction emojis
+   (`votingReactions`: agree, doubt, mock) to comment on the others' needles; they float up on everyone's screen. When all connected guessers have locked, the round reveals.
 4. **Reveal** – the target, every guess and the team average (the mean of all dials) are shown.
    Zones: ±4° = 4 points, ±10° = 3, ±18° = 2, otherwise 0. Everyone taps "Далі" when done
    discussing; the next clue starts when all connected players are ready, or after 60 s.
@@ -40,9 +41,13 @@ The server is the single source of truth: it holds the room state, generates tas
 player a snapshot. Targets are only sent to the clue's author until the reveal, so there is nothing to
 peek at in dev tools. If the host disconnects for 45 s, host passes to the next connected player.
 
+Any player can leave mid-game ("Вийти з гри", with a confirm). Their written clues stay in the game and are still guessed;
+their token stops working, so they can't rejoin. The host passes on immediately. If fewer than `minPlayers` remain,
+the game jumps to the summary with only the clues played so far.
+
 ## Configuration
 
-Game rules live in `src/config.js` (`GAME`: zones, writing/reveal timers, player limits, clue length, reaction emojis per score).
+Game rules live in `src/config.js` (`GAME`: zones, writing/reveal timers, player limits, clue length, reaction emojis per phase and score).
 Spectrums are in `src/spectrums.json` as `["left", "right"]` pairs — just add more.
 
 Environment variables:

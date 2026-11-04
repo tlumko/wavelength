@@ -329,6 +329,31 @@ test('lobby leave migrates host', async () => {
   }
 });
 
+test('mid-game leave: voting continues without the leaver, then too few players ends the game', async () => {
+  const ctx = await setup();
+  const clients = await lobby(ctx, ['Anna', 'Bob', 'Cleo']);
+  const [a, b, c] = clients;
+  try {
+    a.send({ t: 'start' });
+    await waitAll(clients, (x) => x.state.phase === 'writing');
+    for (const x of clients) x.send({ t: 'submit', clues: ['x', 'y', 'z'] });
+    await waitAll(clients, (x) => x.state.phase === 'voting');
+    await c.expectError({ t: 'react', emoji: '🎯' }, 'bad_message');
+    c.send({ t: 'react', emoji: '👎' });
+    await b.until((x) => x.msgs.some((m) => m.t === 'react' && m.emoji === '👎' && m.playerId === c.id));
+    a.send({ t: 'leave' });
+    await a.until((x) => x.closeCode === 1000);
+    await b.until((x) => x.state.hostId === b.id && x.state.players.find((p) => p.id === a.id).left);
+    const rejoin = await new Client(ctx.port, a.session).hello();
+    await rejoin.until((x) => x.closeCode === 4003);
+    b.send({ t: 'leave' });
+    await c.until((x) => x.state.phase === 'summary' && x.state.hostId === c.id);
+    assert.equal(c.state.summary.tasks.length, 0);
+  } finally {
+    await closeAll(ctx, clients);
+  }
+});
+
 test('writing deadline ends the phase and counts drafts', async () => {
   const ctx = await setup({ game: { writingSeconds: 1 } });
   const clients = await lobby(ctx, ['Anna', 'Bob']);

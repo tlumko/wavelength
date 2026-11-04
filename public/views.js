@@ -81,8 +81,9 @@ function Avatar({ name, color, small }) {
   return html`<i class=${'avatar' + (small ? ' small-av' : '')} style=${{ background: colorOf(color) }}>${initialOf(name)}</i>`;
 }
 
-function LeaveButton() {
-  return html`<button class="btn btn-ghost" onClick=${leaveRoom}>Вийти</button>`;
+function LeaveButton({ ask }) {
+  const onClick = () => (!ask || confirm('Вийти з гри? Повернутися вже не вийде.')) && leaveRoom();
+  return html`<button class="btn btn-ghost" onClick=${onClick}>Вийти з гри</button>`;
 }
 
 // ---------- Home ----------
@@ -249,8 +250,9 @@ function Writing({ g }) {
   );
 
   const locked = sent || !!(me && me.submitted);
-  const done = (g.players || []).filter((p) => p.submitted).length;
-  const total = (g.players || []).length;
+  const active = (g.players || []).filter((p) => !p.left);
+  const done = active.filter((p) => p.submitted).length;
+  const total = active.length;
 
   const onInput = (i, v) => {
     const next = tasks.map((_, k) => (k === i ? v : latest.current[k] || ''));
@@ -311,6 +313,7 @@ function Writing({ g }) {
           ? html`<button class="btn btn-primary" disabled=${!allFilled} onClick=${submit}>Надіслати підказки</button>`
           : html`<button class="btn btn-primary" disabled=${!filled(i)} onClick=${() => setStep(i + 1)}>Далі</button>`}
       ${i > 0 && html`<button class="btn btn-ghost" onClick=${() => setStep(i - 1)}>Назад</button>`}
+      <${LeaveButton} ask />
     </section>
   </main>`;
 }
@@ -368,7 +371,7 @@ function Voting({ g }) {
   if (!isAuthor && (myVote || lastSent.current)) counted.push(angle);
   const teamAngle = counted.length ? counted.reduce((a, b) => a + b, 0) / counted.length : null;
 
-  const guessers = (g.players || []).filter((p) => p.id !== task.authorId);
+  const guessers = (g.players || []).filter((p) => p.id !== task.authorId && !p.left);
   const lockedCount = guessers.filter((p) => {
     if (p.id === g.you) return locked;
     const v = (r.votes || []).find((x) => x.playerId === p.id);
@@ -400,12 +403,14 @@ function Voting({ g }) {
       ${isAuthor
         ? html``
         : html`<p class="muted small center-text">Тягніть стрілку</p>`}
+      <${Reactions} list=${r.reactions} />
     </section>
     <section class="actions">
       ${!isAuthor &&
       html`<button class=${'btn ' + (locked ? 'btn-secondary' : 'btn-primary')} onClick=${toggleLock}>${locked ? 'Змінити' : 'Готово'}</button>`}
       <p class="muted small center-text">Готово: ${lockedCount}/${guessers.length}</p>
       ${isHost(g) && html`<button class="btn btn-ghost" onClick=${advance}>Показати результат зараз</button>`}
+      <${LeaveButton} ask />
     </section>
   </main>`;
 }
@@ -455,6 +460,7 @@ function Reveal({ g }) {
         ? html`<p class="waiting center-text">Чекаємо на інших…</p>`
         : html`<button class="btn btn-primary" onClick=${advance}>${'Далі'}</button>`}
       <p class="muted small center-text">Готові: ${readyCount}/${connected.length}</p>
+      <${LeaveButton} ask />
     </section>
   </main>`;
 }

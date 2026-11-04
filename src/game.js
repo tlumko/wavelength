@@ -96,7 +96,7 @@ export class Room {
 
   authenticate(token) {
     if (typeof token !== 'string') return null;
-    return [...this.players.values()].find((p) => safeEqual(p.token, token)) ?? null;
+    return [...this.players.values()].find((p) => !p.left && safeEqual(p.token, token)) ?? null;
   }
 
   armTimer(p) {
@@ -361,7 +361,8 @@ export class Room {
 
   react(p, emoji) {
     const allowed =
-      this.phase === 'reveal' ? this.reactionsFor(this.task.result.points)
+      this.phase === 'voting' ? this.cfg.votingReactions
+      : this.phase === 'reveal' ? this.reactionsFor(this.task.result.points)
       : this.phase === 'summary' ? this.cfg.summaryReactions
       : null;
     if (!allowed) throw new GameError('bad_phase');
@@ -403,13 +404,31 @@ export class Room {
     this.broadcast();
   }
 
+  // Mid-game the leaver stays in the map (marked `left`) so their clues keep a name and colour.
   leave(p) {
-    if (this.phase !== 'lobby') return;
     const ws = p.ws;
     p.ws = null;
     p.connected = false;
-    this.removePlayer(p.id);
     ws?.close(1000, 'left');
+    if (this.phase === 'lobby') return this.removePlayer(p.id);
+    clearTimeout(p.timer);
+    p.left = true;
+    p.submitted = true; // drafts typed so far still count
+    this.votes.delete(p.id);
+    this.ready.delete(p.id);
+    log('player_left', { playerId: p.id, phase: this.phase }, this.code);
+    const active = [...this.players.values()].filter((q) => !q.left);
+    if (!active.length) return this.onEmpty();
+    if (this.hostId === p.id) this.hostId = (active.find((q) => q.connected) ?? active[0]).id;
+    if (active.length < this.cfg.minPlayers && this.phase !== 'summary') {
+      this.clearDeadline();
+      this.tasks = this.tasks.filter((t) => t.result);
+      this.phase = 'summary';
+      log('game_finished', { score: this.score(this.tasks.length), reason: 'not_enough_players' }, this.code);
+      return this.broadcast();
+    }
+    if (this.phase === 'writing' && [...this.players.values()].every((q) => q.submitted)) return this.endWriting();
+    if (!this.checkReveal() && !this.checkReady()) this.broadcast();
   }
 
   // ---- snapshot ----------------------------------------------------------
@@ -443,6 +462,7 @@ export class Room {
         connected: p.connected,
         isHost: p.id === this.hostId,
         submitted: p.submitted,
+        left: !!p.left,
       })),
     };
     if (phase === 'writing') {
@@ -459,6 +479,7 @@ export class Room {
         score: this.score(this.roundIndex + (revealed ? 1 : 0)),
         task: { id: t.id, authorId: t.authorId, left: t.left, right: t.right, clue: t.clue },
         votes: [...this.votes].map(([playerId, v]) => ({ playerId, angle: v.angle, locked: v.locked })),
+        reactions: cfg.votingReactions,
       };
       if (revealed || viewer.id === t.authorId) s.round.task.target = t.target;
       if (revealed) {
