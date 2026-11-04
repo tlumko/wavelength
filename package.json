@@ -1,0 +1,25 @@
+{
+  "name": "wavelength",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "DEV=1 nodemon -L -w server.js -w src server.js",
+    "test": "node --test \"test/*.test.js\"",
+    "vendor": "node scripts/vendor.js",
+    "postinstall": "node scripts/vendor.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "htm": "^3.1.1",
+    "preact": "^10.25.4",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.1",
+    "nodemon": "^3.1.14"
+  }
+}
