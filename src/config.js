@@ -24,7 +24,7 @@ export const GAME = {
   reactionGapMs: 150,
 };
 
-export const cluesPerPlayer = (n) => (n <= 3 ? 1 : n <= 5 ? 2 : 1);
+export const cluesPerPlayer = (n) => (n <= 3 ? 3 : n <= 5 ? 2 : 1);
 
 const num = (v, d) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : d);
 
