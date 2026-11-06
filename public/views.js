@@ -13,7 +13,6 @@ import {
   advance,
   forceAdvance,
   react,
-  flyEmoji,
   newGame,
   showToast,
   serverNow,
@@ -23,10 +22,10 @@ import {
 
 export function verdictFor(pct) {
   if (pct >= 90) return '🤯🤯🤯';
-  if (pct >= 70) return '🤯';
-  if (pct >= 50) return 'Найс!';
-  if (pct >= 25) return 'Ну таке';
-  return '...';
+  if (pct >= 70) return 'Відмінно!';
+  if (pct >= 50) return 'Добре!';
+  if (pct >= 25) return 'Слабенько';
+  return 'Повз!';
 }
 
 export function formatTime(sec) {
@@ -88,7 +87,7 @@ function LeaveButton({ ask }) {
 }
 
 function ForceButton({ g, label }) {
-  return isHost(g) && html`<button class="btn btn-ghost force-btn" onClick=${forceAdvance}>${label}</button>`;
+  return isHost(g) && html`<button class="btn force-btn" onClick=${forceAdvance}>${label}</button>`;
 }
 
 // ---------- Home ----------
@@ -137,6 +136,11 @@ function Home({ s }) {
           maxlength="20"
           autocomplete="nickname"
           onInput=${(e) => setName(e.target.value)}
+          onKeyDown=${(e) => {
+            if (e.key !== 'Enter' && e.key !== 'NumpadEnter') return;
+            e.preventDefault();
+            if (name.trim()) create();
+          }}
         />
       </label>
     </section>
@@ -255,9 +259,6 @@ function Writing({ g }) {
   );
 
   const locked = sent || !!(me && me.submitted);
-  const active = (g.players || []).filter((p) => !p.left);
-  const done = active.filter((p) => p.submitted).length;
-  const total = active.length;
 
   const onInput = (i, v) => {
     const next = tasks.map((_, k) => (k === i ? v : latest.current[k] || ''));
@@ -287,11 +288,21 @@ function Writing({ g }) {
     else sentRef.current = false;
   };
 
+  // Enter in the clue field advances to the next clue (or submits on the last).
+  const enterProceeds = () => {
+    if (locked) return;
+    if (last) {
+      if (allFilled) submit();
+    } else if (filled(i)) {
+      setStep(i + 1);
+    }
+  };
+
   return html`<main class="screen writing">
     <header class="topbar">
       <div>
         <h2>Придумайте підказки</h2>
-        <span class="muted small">Готово: ${done}/${total}</span>
+        <span class="muted small">Готово підказок: ${g.readyClues ?? 0}/${g.totalClues ?? 0}</span>
       </div>
       <${Timer} deadline=${g.deadline} />
     </header>
@@ -309,6 +320,11 @@ function Writing({ g }) {
         placeholder="Ваша підказка для цього місця"
         aria-label=${'Підказка ' + (i + 1)}
         onInput=${(e) => onInput(i, e.target.value)}
+        onKeyDown=${(e) => {
+          if (e.key !== 'Enter' && e.key !== 'NumpadEnter') return;
+          e.preventDefault();
+          enterProceeds();
+        }}
       />
     </section>`}
     <section class="actions">
@@ -319,7 +335,7 @@ function Writing({ g }) {
           : html`<button class="btn btn-primary" disabled=${!filled(i)} onClick=${() => setStep(i + 1)}>Далі</button>`}
       ${i > 0 && html`<button class="btn btn-ghost" onClick=${() => setStep(i - 1)}>Назад</button>`}
       <${LeaveButton} ask />
-      <${ForceButton} g=${g} label="Почати голосування зараз" />
+      <${ForceButton} g=${g} label="Продовжити, ігноруючи тих, хто ще не готовий" />
     </section>
   </main>`;
 }
@@ -393,7 +409,6 @@ function Voting({ g }) {
       <${Timer} deadline=${g.deadline} />
     </header>
     <section class="card">
-      <${SpectrumLabels} left=${task.left} right=${task.right} />
       <p class="clue-text">${task.clue}</p>
       <${Dial}
         zones=${cfg.zones}
@@ -406,17 +421,18 @@ function Voting({ g }) {
         disabled=${isAuthor || locked}
         label="Ваш варіант на шкалі"
       />
+      <${SpectrumLabels} left=${task.left} right=${task.right} />
       ${isAuthor
         ? html``
         : html`<p class="muted small center-text">Тягніть стрілку</p>`}
-      <${Reactions} list=${r.reactions} />
+      ${!isAuthor && html`<${Reactions} list=${r.reactions} />`}
     </section>
     <section class="actions">
       ${!isAuthor &&
       html`<button class=${'btn ' + (locked ? 'btn-secondary' : 'btn-primary')} onClick=${toggleLock}>${locked ? 'Змінити' : 'Готово'}</button>`}
       <p class="muted small center-text">Готово: ${lockedCount}/${guessers.length}</p>
       <${LeaveButton} ask />
-      <${ForceButton} g=${g} label="Показати результат зараз" />
+      <${ForceButton} g=${g} label="Продовжити, ігноруючи тих, хто ще не готовий" />
     </section>
   </main>`;
 }
@@ -431,7 +447,6 @@ function Reveal({ g }) {
   const r = g.round;
   const task = r.task;
   const res = r.result || null;
-  const lastRound = r.index + 1 >= r.total;
   const entries = res ? Object.entries(res.votes || {}) : [];
   const needles = entries.map(([id, a]) => needleFor(g, id, a, false, id === g.you));
   const target = typeof task.target === 'number' ? task.target : null;
@@ -448,7 +463,6 @@ function Reveal({ g }) {
       <${Timer} deadline=${g.deadline} />
     </header>
     <section class="card">
-      <${SpectrumLabels} left=${task.left} right=${task.right} />
       <p class="clue-text">${task.clue}</p>
       <${Dial}
         zones=${cfg.zones}
@@ -457,6 +471,7 @@ function Reveal({ g }) {
         teamAngle=${res ? res.teamAngle : null}
         label="Результат"
       />
+      <${SpectrumLabels} left=${task.left} right=${task.right} />
       ${res && res.points === 4 && html`<${Flames} key=${task.id} />`}
       ${res &&
       html`<div class="result">
@@ -471,7 +486,7 @@ function Reveal({ g }) {
         : html`<button class="btn btn-primary" onClick=${advance}>${'Далі'}</button>`}
       <p class="muted small center-text">Готові: ${readyCount}/${connected.length}</p>
       <${LeaveButton} ask />
-      <${ForceButton} g=${g} label=${lastRound ? 'До підсумків зараз' : 'Наступний раунд зараз'} />
+      <${ForceButton} g=${g} label="Продовжити, ігноруючи тих, хто ще не готовий" />
     </section>
   </main>`;
 }
@@ -489,6 +504,25 @@ function Reactions({ list }) {
   </div>`;
 }
 
+const CLUE_FLY_MAX = 20; // reactions replayed per clue during the summary replay
+const CLUE_FLY_SPAN_MS = 1200; // first→last emoji start window inside the 4 s step
+// Each clue replays the reactions that flew live on its reveal card: the
+// emojis pop out across the card one after another, like they did live.
+function ClueReactions({ events }) {
+  const list = (events || []).slice(0, CLUE_FLY_MAX);
+  if (!list.length) return null;
+  const n = list.length;
+  return html`<div class="clue-fly" aria-hidden="true">
+    ${list.map((e, i) => html`<i
+      key=${i}
+      style=${{
+        left: (8 + ((i * 41) % 84)) + '%',
+        animationDelay: (n > 1 ? (i * CLUE_FLY_SPAN_MS) / (n - 1) : 0).toFixed(0) + 'ms',
+      }}
+    >${e.emoji}</i>`)}
+  </div>`;
+}
+
 function Summary({ g }) {
   const cfg = g.config;
   const sm = g.summary || { score: 0, maxScore: 0, tasks: [] };
@@ -500,8 +534,6 @@ function Summary({ g }) {
 
   useEffect(() => {
     if (done) return;
-    const list = t.reactions || [];
-    if (list.length) flyEmoji(list[Math.floor(Math.random() * list.length)]);
     setLeaving(false);
     const out = setTimeout(() => setLeaving(true), REPLAY_STEP_MS - REPLAY_FADE_MS);
     const next = setTimeout(() => setStep(step + 1), REPLAY_STEP_MS);
@@ -532,7 +564,7 @@ function Summary({ g }) {
       </div>
       ${t &&
       html`<section class=${'card task-sum fade-in' + (leaving ? ' fade-away' : '')} key=${t.id}>
-        <${SpectrumLabels} left=${t.left} right=${t.right} />
+        <${ClueReactions} events=${t.events} />
         <${Dial}
           zones=${cfg.zones}
           target=${typeof t.target === 'number' ? t.target : null}
@@ -540,6 +572,7 @@ function Summary({ g }) {
           teamAngle=${res ? res.teamAngle : null}
           label=${'Підказка ' + (step + 1)}
         />
+        <${SpectrumLabels} left=${t.left} right=${t.right} />
         <p class="clue-text small-clue">${t.clue}</p>
         <p class="muted small center-text">${nameOf(g, t.authorId)} · <b class="pop step-points">+${pointsOf(t)}</b> ${pointsWord(pointsOf(t))}</p>
       </section>`}

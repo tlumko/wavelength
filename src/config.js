@@ -14,17 +14,17 @@ export const GAME = {
   targetMax: 175,
   // Reveal reaction emojis by points scored; unknown point values fall back to 0.
   reactions: {
-    4: ['🤯', '🔥', '🎯', '🎉', '👏'],
-    3: ['🔥', '😎', '👏', '🙌', '👍'],
+    4: ['🤯', '🔥', '🎯', '🎉', '🪩'],
+    3: ['🔥', '😎', '👏', '🙌', '🤏'],
     2: ['❤️‍🩹', '🙂', '👌', '🤏', '😅'],
     0: ['😭', '💩', '💀', '🙈', '🫠'],
   },
-  votingReactions: ['👍', '🤔', '👀', '🤡', '💩'],
+  votingReactions: ['👈', '🤔', '💯', '💩', '👉'],
   summaryReactions: ['😂', '🔥', '👏', '🎉', '😬', '💩'],
   reactionGapMs: 150,
 };
 
-export const cluesPerPlayer = (n) => (n <= 3 ? 3 : n <= 5 ? 2 : 1);
+export const cluesPerPlayer = (n) => (n <= 3 ? 1 : n <= 5 ? 2 : 1);
 
 const num = (v, d) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : d);
 

@@ -187,6 +187,7 @@ test('full game flow with scoring, hidden target and shared advance', async () =
         assert.ok(!JSON.stringify(v.state).includes('"target"'));
       }
       await author.expectError({ t: 'lock', locked: true, angle: 90 }, 'author_cannot_vote');
+      await author.expectError({ t: 'react', emoji: '🤔' }, 'author_cannot_react');
       await voters[0].expectError({ t: 'lock', locked: false }, 'no_vote');
       await voters[0].expectError({ t: 'vote', angle: 999 }, 'bad_angle');
 

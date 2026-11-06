@@ -224,6 +224,7 @@ export class Room {
           target: randomInt(this.cfg.targetMin, this.cfg.targetMax + 1),
           clue: '',
           result: null,
+          reactions: [], // {playerId, emoji} sent after this task's reveal
         });
       }
     }
@@ -376,6 +377,8 @@ export class Room {
     const now = Date.now();
     if (now - (p.lastReact ?? 0) < this.cfg.reactionGapMs) return;
     p.lastReact = now;
+    // Store reactions sent after the round reveal so the summary replay can show them per clue.
+    if (this.phase === 'reveal' && this.task.reactions.length < 24) this.task.reactions.push({ playerId: p.id, emoji });
     for (const q of this.players.values()) this.send(q, { t: 'react', playerId: p.id, emoji });
   }
 
@@ -475,6 +478,8 @@ export class Room {
       s.myTasks = this.tasks
         .filter((t) => t.authorId === viewer.id)
         .map(({ id, left, right, target, clue }) => ({ id, left, right, target, clue }));
+      s.readyClues = this.tasks.filter((t) => t.clue).length;
+      s.totalClues = this.tasks.length;
     }
     if (phase === 'voting' || phase === 'reveal') {
       const t = this.task;
@@ -501,8 +506,9 @@ export class Room {
         score,
         maxScore: max * this.tasks.length,
         reactions: cfg.summaryReactions,
-        tasks: this.tasks.map(({ id, authorId, left, right, clue, target, result }) => ({
+        tasks: this.tasks.map(({ id, authorId, left, right, clue, target, result, reactions }) => ({
           id, authorId, left, right, clue, target, result,
+          events: [...(reactions || [])],
           reactions: this.reactionsFor(result?.points ?? 0),
         })),
       };

@@ -27,15 +27,17 @@ Open two or more tabs, create a game in one and join with the 4-digit code (or t
    drafts are autosaved, so whatever is typed when time runs out still counts, empty clues are skipped.
    Ends early when everyone has submitted.
 3. **Voting** – clues are shown one by one, round-robin in join order (everyone's 1st clue, then everyone's 2nd, …). Everyone except the author moves a dial (others' dials are
-   visible, semi-transparent, with a live team-average arrow) and locks it in. Anyone can tap reaction emojis
-   (`votingReactions`: agree, doubt, mock) to comment on the others' needles; they float up on everyone's screen. When all connected guessers have locked, the round reveals.
+   visible, semi-transparent, with a live team-average arrow) and locks it in. Guessers can tap reaction emojis
+   (`votingReactions`: agree, doubt, mock) to comment on the others' needles; they float up on everyone's screen. The author sees no emoji buttons
+   during this pre-reveal discussion (they already know the answer, so reactions could leak it). When all connected guessers have locked, the round reveals.
 4. **Reveal** – the target, every guess and the team average (the mean of all dials) are shown.
    Zones: ±4° = 4 points, ±10° = 3, ±18° = 2, otherwise 0. Everyone taps "Далі" when done
    discussing; the next clue starts when all connected players are ready, or after 60 s.
    Players can tap reaction emojis (cheerful for a good score, mocking for a miss); they float up on everyone's screen.
 5. **Summary** – a replay: clues one by one (4 s each, small dial) fading in and out, stacking segments in the author's colour in a vertical score
-   gauge marked at the verdict thresholds, with one random emoji flying per clue, then the total and a verdict.
-   Players can send reactions from a fixed emoji set (`summaryReactions`) throughout. Host can start a new game with the same players.
+   gauge marked at the verdict thresholds. Each clue replays with the reaction emojis it collected on its reveal screen (they fly up inside the card,
+   like they did live); there are no emojis left for the final total + verdict. Players can send reactions from a fixed emoji set (`summaryReactions`)
+   throughout. Host can start a new game with the same players.
 
 The server is the single source of truth: it holds the room state, generates tasks, and sends each
 player a snapshot. Targets are only sent to the clue's author until the reveal, so there is nothing to

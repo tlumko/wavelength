@@ -146,10 +146,12 @@ test('Writing renders tasks, dials and limits', async () => {
       { id: 'a', left: 'Гаряче', right: 'Холодне', target: 42, clue: 'чернетка' },
       { id: 'b', left: 'Добре', right: 'Погано', target: 120, clue: '' },
     ],
+    readyClues: 2,
+    totalClues: 6,
   });
   await mount(views.writing, { g }, (c, text) => {
     assert.match(text, /Придумайте підказки/);
-    assert.match(text, /Готово: 1\/3/);
+    assert.match(text, /Готово підказок: 2\/6/);
     assert.match(text, /1 \/ 2/);
     assert.match(text, /1:\d\d/);
     assert.equal(c.querySelectorAll('svg.dial').length, 1);
@@ -176,6 +178,8 @@ test('Writing after submit shows waiting message', async () => {
     deadline: Date.now() + 5000,
     players: [me, players[1], players[2]],
     myTasks: [{ id: 'a', left: 'Л', right: 'П', target: 42, clue: 'готово' }],
+    readyClues: 1,
+    totalClues: 6,
   });
   await mount(views.writing, { g }, (c, text) => {
     assert.match(text, /Підказки надіслано/);
@@ -193,7 +197,7 @@ test('Voting as guesser: interactive dial and lock button', async () => {
     assert.match(text, /1 \/ 3/);
     assert.match(text, /Борщ/);
     assert.match(text, /Готово/);
-    assert.match(text, /Показати результат зараз/);
+    assert.match(text, /Продовжити, ігноруючи тих, хто ще не готовий/);
     assert.ok(c.querySelector('.team-needle'), 'live team arrow from other votes');
     const slider = c.querySelector('[role="slider"]');
     assert.ok(slider);
@@ -210,7 +214,7 @@ test('Voting as locked guesser shows "Змінити"', async () => {
   });
   await mount(views.voting, { g }, (c, text) => {
     assert.match(text, /Змінити/);
-    assert.doesNotMatch(text, /Показати результат зараз/);
+    assert.doesNotMatch(text, /Продовжити, ігноруючи тих, хто ще не готовий/);
     assert.equal(c.querySelector('[role="slider"]').getAttribute('aria-valuenow'), '61');
   });
 });
@@ -238,7 +242,15 @@ test('Voting as author: sees target, no lock button', async () => {
 test('Reveal renders points, team needle and next button', async () => {
   const g = snap({
     phase: 'reveal',
-    round: { index: 0, total: 3, score: 3, task: { ...task, target: 75 }, votes: [], result, reactions: ['🔥', '😎'] },
+    round: {
+      index: 0,
+      total: 3,
+      score: 3,
+      task: { ...task, target: 75 },
+      votes: [],
+      result,
+      reactions: ['🔥', '😎', '👏'],
+    },
   });
   await mount(views.reveal, { g }, (c, text) => {
     assert.match(text, /\+3/);
@@ -246,7 +258,7 @@ test('Reveal renders points, team needle and next button', async () => {
     assert.match(text, /Далі/);
     assert.ok(c.querySelector('.team-needle'));
     assert.ok(c.querySelector('.pop'));
-    assert.equal(c.querySelectorAll('button.reaction').length, 2);
+    assert.equal(c.querySelectorAll('button.reaction').length, 3); // live palette for players
   });
 });
 
@@ -269,8 +281,8 @@ test('Summary replays clues one by one, then shows the verdict', async () => {
       score: 20,
       maxScore: 24,
       tasks: [
-        { ...task, id: 'a', target: 75, result, reactions: ['🔥'] },
-        { ...task, id: 'b', target: 20, clue: 'Сніг', result: { ...result, points: 1 }, reactions: ['🤡'] },
+        { ...task, id: 'a', target: 75, result, events: [{ playerId: 'p1', emoji: '🔥' }, { playerId: 'p3', emoji: '🎉' }] },
+        { ...task, id: 'b', target: 20, clue: 'Сніг', result: { ...result, points: 1 }, events: [{ playerId: 'p1', emoji: '🤡' }] },
       ],
       reactions: ['😂', '👏'],
     },
@@ -284,6 +296,8 @@ test('Summary replays clues one by one, then shows the verdict', async () => {
     assert.equal(c.querySelectorAll('svg.dial').length, 1);
     assert.equal(c.querySelectorAll('.vgauge-seg').length, 1);
     assert.deepEqual([...c.querySelectorAll('button.reaction')].map((b) => b.textContent), ['😂', '👏']);
+    // the first clue replays its own reveal reactions (2), not the verdict card's
+    assert.deepEqual([...c.querySelectorAll('.clue-fly i')].map((i) => i.textContent), ['🔥', '🎉']);
   });
   const empty = snap({ phase: 'summary', summary: { score: 0, maxScore: 0, tasks: [], reactions: ['🤡'] } });
   await mount(views.summary, { g: empty }, (c, text) => {
