@@ -230,7 +230,11 @@ export class Room {
     }
     this.phase = 'writing';
     this.setDeadline(this.cfg.writingSeconds, () => this.endWriting());
-    log('game_started', { players: this.players.size, tasks: this.tasks.length }, this.code);
+    log('game_started', {
+      players: this.players.size,
+      tasks: this.tasks.length,
+      playerNames: [...this.players.values()].map(p => p.name).join(', '),
+    }, this.code);
     this.broadcast();
   }
 
@@ -397,7 +401,12 @@ export class Room {
     this.roundIndex++;
     this.votes = new Map();
     this.phase = this.roundIndex < this.tasks.length ? 'voting' : 'summary';
-    if (this.phase === 'summary') log('game_finished', { score: this.score(this.tasks.length) }, this.code);
+    if (this.phase === 'summary') {      
+      const maxScore = Math.max(...this.cfg.zones.map((z) => z.points)) * this.tasks.length;
+      const score = this.score(this.tasks.length);
+      const relativeScore = Math.round(score * 100 / maxScore)
+      log('game_finished', { score: `${this.score(this.tasks.length)} / ${maxScore}, (${relativeScore}%)` }, this.code);
+    }
     this.broadcast();
   }
 
